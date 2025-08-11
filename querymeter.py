@@ -5,7 +5,7 @@ import time
 config=open('querymeter.conf','r').read().splitlines()
 SERIAL=config[0] # first line of querymeter.conf should be like /dev/ttyUSB0
 logfile=open('querymeter_'+time.strftime('%Y%m%d%H%M%S')+'.csv','w')
-serialPort = serial.Serial(port=SERIAL,baudrate=1200, bytesize=8, parity='N', stopbits=1, timeout=5000, xonxoff=0, rtscts=0, dsrdtr=0, write_timeout=0.1)
+serialPort = serial.Serial(port=SERIAL,baudrate=1200, bytesize=8, parity='N', stopbits=1, timeout=2, xonxoff=0, rtscts=0, dsrdtr=0, write_timeout=0.1)
 
 def send_message(message):
     packet = [len(message) + 3] # firts byte is length including itself and checksum
@@ -17,9 +17,15 @@ def send_message(message):
     return packet
 
 def receive_message():
-    a = serialPort.read_all()
+    a = serialPort.read(1)
+    if len(a) == 0:
+        time.sleep(0.5)
+        print('.',end='',flush=True)
+        return False
+    #:print('a[0]: ' + str(int(a[0])))
+    a += serialPort.read(a[0])
     if a[0] != len(a):
-        print('invalid packet recieved: ',end='')
+        print('invalid packet receeeved: ',end='')  # spelled inspired by Lolo
         print(a)
         return False
     if crc16_arc(a[:-2]) !=    a[-1] * 256 + a[-2]:
@@ -46,10 +52,10 @@ def crc16_arc(data, offset=0, length=None):
 def wait_for_response():
     r = False
     startWaitTime = time.time()
-    while (r == False) and (time.time() - startWaitTime < 5):
+    while (r == False) and (time.time() - startWaitTime < 10):
         r = receive_message()
     if r:
-        print(r)
+        print(r.hex())
     else:
         print('timed out waiting for a response')
 
@@ -63,15 +69,23 @@ if __name__ == '__main__':
     #print('CRC:',hex(crc16_arc(bytes.fromhex('0B0000000000000009'))))
     #print('CRC:',hex(crc16_arc([0x0B,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x09])))
     send_break()
-    print('sent ' + str(send_message([0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x09])))
+    print('sent message 0: ' + bytes(send_message([0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x09])).hex())
     time.sleep(0.220)
     send_break()
-    print('sent ' + str(send_message([0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x07,0x00])))
+    print('sent message 1: ' + bytes(send_message([0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x07,0x00])).hex())
     # now 0.553 seconds will go by before response
     wait_for_response()
     time.sleep(5.13)
     send_break()
-    print('sent ' + str(send_message(['0x60','0x93','0x05','0x50','0x10','0x02','0xB6','0x03','0x00','0x00','0x00','0x00','0x00','0x00','0x00','0x01','0x00','0x00','0x00','0x00','0x00','0x00','0x00','0x00','0x22','0x01','0x00','0x00','0x74'])))
+    print('sent message 7: ' + bytes(send_message([0x60,0x93,0x05,0x50,0x10,0x02,0xB6,  0x03,  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x22,0x01,0x00,0x00,0x74])).hex())
     wait_for_response()
-    print('sent ' + str(send_message(['0x60','0x93','0x05','0x50','0x10','0x02','0xB6','0x05','0x00','0x00','0x00','0x00','0x00','0x00','0x00','0x00','0xA7','0x23','0xB1','0xC1','0xE9','0x4D','0xA6','0x8C'])))
+    time.sleep(1)
+    send_break()
+    print('sent message 7: ' + bytes(send_message([0x60,0x93,0x05,0x50,0x10,0x02,0xB6,  0x03,  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x22,0x01,0x00,0x00,0x74])).hex())
     wait_for_response()
+    time.sleep(2)
+    send_break()
+    print('sent message 5: ' + bytes(send_message([0x60,0x93,0x05,0x50,0x10,0x02,0xB6,  0x05,  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  0xA7,0x23,0xB1,0xC1,0xE9,0x4D,0xA6,0x8C])).hex())
+    print(time.time())
+    wait_for_response()
+    print(time.time())
