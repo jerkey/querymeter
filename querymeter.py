@@ -87,3 +87,9 @@ if __name__ == '__main__':
     kwh = r[17] * 2**24 +r[18] * 2**16 +r[19] * 2**8 +r[20]
     kwh += (r[41] * 2**8 +r[42]) * 0.0001
     print(kwh)
+    send_break()
+    print('sent power query: ' + bytes(send_message(meter_id + [0x01,0x20])).hex())
+    r = wait_for_response() # returns 20 bytes of data
+    voltage = r[13] # probably actually + (r[12 or 14] * 256)
+    amperage = r[11]
+    print(f'voltage: {voltage}	amperage: {amperage:02}')
